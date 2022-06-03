@@ -555,6 +555,7 @@ class GitRepoProvider(RepoProvider):
         return self.repo
 
 
+
 class GitLabRepoProvider(RepoProvider):
     """GitLab provider.
 
@@ -573,6 +574,140 @@ class GitLabRepoProvider(RepoProvider):
 
     hostname = Unicode(
         "gitlab.com",
+        config=True,
+        help="""The host of the GitLab instance
+
+        For personal GitLab servers.
+        """,
+    )
+
+    access_token = Unicode(
+        config=True,
+        help="""GitLab OAuth2 access token for authentication with the GitLab API
+
+        For use with client_secret.
+        Loaded from GITLAB_ACCESS_TOKEN env by default.
+        """,
+    )
+
+    @default("access_token")
+    def _access_token_default(self):
+        return os.getenv("GITLAB_ACCESS_TOKEN", "")
+
+    private_token = Unicode(
+        config=True,
+        help="""GitLab private token for authentication with the GitLab API
+
+        Loaded from GITLAB_PRIVATE_TOKEN env by default.
+        """,
+    )
+
+    @default("private_token")
+    def _private_token_default(self):
+        return os.getenv("GITLAB_PRIVATE_TOKEN", "")
+
+    auth = Dict(
+        help="""Auth parameters for the GitLab API access
+
+        Populated from access_token, private_token
+    """
+    )
+
+    @default("auth")
+    def _default_auth(self):
+        auth = {}
+        for key in ("access_token", "private_token"):
+            value = getattr(self, key)
+            if value:
+                auth[key] = value
+        return auth
+
+    @default("git_credentials")
+    def _default_git_credentials(self):
+        if self.private_token:
+            return rf"username=binderhub\npassword={self.private_token}"
+        return ""
+
+    labels = {
+        "text": "GitLab.com repository or URL",
+        "tag_text": "Git ref (branch, tag, or commit)",
+        "ref_prop_disabled": False,
+        "label_prop_disabled": False,
+    }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.quoted_namespace, unresolved_ref = self.spec.split("/", 1)
+        self.namespace = urllib.parse.unquote(self.quoted_namespace)
+        self.unresolved_ref = urllib.parse.unquote(unresolved_ref)
+        if not self.unresolved_ref:
+            raise ValueError("An unresolved ref is required")
+
+    async def get_resolved_ref(self):
+        if hasattr(self, "resolved_ref"):
+            return self.resolved_ref
+
+        namespace = urllib.parse.quote(self.namespace, safe="")
+        client = AsyncHTTPClient()
+        api_url = "https://{hostname}/api/v4/projects/{namespace}/repository/commits/{ref}".format(
+            hostname=self.hostname,
+            namespace=namespace,
+            ref=urllib.parse.quote(self.unresolved_ref, safe=""),
+        )
+        self.log.debug("Fetching %s", api_url)
+
+        if self.auth:
+            # Add auth params. After logging!
+            api_url = url_concat(api_url, self.auth)
+
+        try:
+            resp = await client.fetch(api_url, user_agent="BinderHub")
+        except HTTPError as e:
+            if e.code == 404:
+                return None
+            else:
+                raise
+
+        ref_info = json.loads(resp.body.decode("utf-8"))
+        self.resolved_ref = ref_info["id"]
+        return self.resolved_ref
+
+    async def get_resolved_spec(self):
+        if not hasattr(self, "resolved_ref"):
+            self.resolved_ref = await self.get_resolved_ref()
+        return f"{self.quoted_namespace}/{self.resolved_ref}"
+
+    def get_build_slug(self):
+        # escape the name and replace dashes with something else.
+        return "-".join(p.replace("-", "_-") for p in self.namespace.split("/"))
+
+    def get_repo_url(self):
+        return f"https://{self.hostname}/{self.namespace}.git"
+
+    async def get_resolved_ref_url(self):
+        if not hasattr(self, "resolved_ref"):
+            self.resolved_ref = await self.get_resolved_ref()
+        return f"https://{self.hostname}/{self.namespace}/tree/{self.resolved_ref}"
+    
+class GWDGGitLabRepoProvider(RepoProvider):
+    """GWDG GitLab provider class for implementing access for private GWDG repo.
+    This class is largely inspired in the vanilla GitLab class and is a proof of
+    concept.
+    
+    Users must provide a spec that matches the following form.
+
+    <url-escaped-namespace>/<unresolved_ref>
+
+    eg:
+    group%2Fproject%2Frepo/master
+    """
+
+    name = Unicode("GWDGGitLab")
+
+    display_name = "gitlab.gwdg.de"
+
+    hostname = Unicode(
+        "gitlab.gwdg.de",
         config=True,
         help="""The host of the GitLab instance
 
