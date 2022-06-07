@@ -28,3 +28,6 @@ c.BinderHub.debug = True
 c.BinderHub.hub_url = f"http://{jupyterhub_ip}:30902"
 c.BinderHub.hub_api_token = "dummy-binder-secret-token"
 c.BinderHub.use_registry = False
+c.BinderHub.debug = True
+
+c.GWDGGiLabRepoProvider.access_token = 'A2G5VUNa23qSP485Ny15'
