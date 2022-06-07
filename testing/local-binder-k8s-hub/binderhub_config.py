@@ -31,3 +31,4 @@ c.BinderHub.use_registry = False
 c.BinderHub.debug = True
 
 c.GWDGGiLabRepoProvider.access_token = 'A2G5VUNa23qSP485Ny15'
+c.GiLabRepoProvider.access_token = 'A2G5VUNa23qSP485Ny15'
