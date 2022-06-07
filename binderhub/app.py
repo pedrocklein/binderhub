@@ -518,7 +518,7 @@ class BinderHub(Application):
             "figshare": FigshareProvider,
             "hydroshare": HydroshareProvider,
             "dataverse": DataverseProvider,
-            "gwdg": GWDGGitLabRepoProvider,
+            "git": GWDGGitLabRepoProvider,
         },
         config=True,
         help="""
