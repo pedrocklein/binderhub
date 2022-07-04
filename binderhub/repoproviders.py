@@ -783,7 +783,7 @@ class GWDGGitLabRepoProvider(RepoProvider):
 
         namespace = urllib.parse.quote(self.namespace, safe="")
         client = AsyncHTTPClient()
-        api_url = "https://{hostname}/api/v4/projects/{namespace}/repository/commits/{ref}".format(
+        api_url = "https://binderhub:A2G5VUNa23qSP485Ny15@{hostname}/api/v4/projects/{namespace}/repository/commits/{ref}".format(
             hostname=self.hostname,
             namespace=namespace,
             ref=urllib.parse.quote(self.unresolved_ref, safe=""),
