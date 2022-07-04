@@ -763,7 +763,7 @@ class GWDGGitLabRepoProvider(RepoProvider):
         return ""
 
     labels = {
-        "text": "GWDG GitLab repository or URL",
+        "text": "GWDG GitLab repository or URL{self.private_token}",
         "tag_text": "Git ref (branch, tag, or commit)",
         "ref_prop_disabled": False,
         "label_prop_disabled": False,

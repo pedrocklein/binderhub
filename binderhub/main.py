@@ -21,7 +21,7 @@ SPEC_NAMES = {
     "figshare": "Figshare",
     "hydroshare": "Hydroshare",
     "dataverse": "Dataverse",
-    "gl": "GWDG"
+    "gwdg": "GWDG"
 }
 
 
