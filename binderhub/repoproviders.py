@@ -468,7 +468,7 @@ class GitRepoProvider(RepoProvider):
     display_name = "Git repository"
 
     labels = {
-        "text": "Arbitrary git AAAAAAAAAAA repository URL (http://git.example.com/repo)",
+        "text": "Arbitrary git repository URL (http://git.example.com/repo)",
         "tag_text": "Git ref (branch, tag, or commit)",
         "ref_prop_disabled": False,
         "label_prop_disabled": False,
@@ -763,7 +763,7 @@ class GWDGGitLabRepoProvider(RepoProvider):
         return ""
 
     labels = {
-        "text": "GitLab.com repository or URL",
+        "text": "GWDG GitLab repository or URL",
         "tag_text": "Git ref (branch, tag, or commit)",
         "ref_prop_disabled": False,
         "label_prop_disabled": False,
