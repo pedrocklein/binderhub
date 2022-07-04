@@ -759,11 +759,11 @@ class GWDGGitLabRepoProvider(RepoProvider):
     @default("git_credentials")
     def _default_git_credentials(self):
         if self.private_token:
-            return rf"username=binderhub\npassword=%s"%(self.private_token)
+            return rf"username=binderhub\npassword={self.private_token}"
         return ""
 
     labels = {
-        "text": "GWDG GitLab repository or URL %s"%(private_token.get()),
+        "text": "GWDG GitLab repository or URL {private_token}",
         "tag_text": "Git ref (branch, tag, or commit)",
         "ref_prop_disabled": False,
         "label_prop_disabled": False,
