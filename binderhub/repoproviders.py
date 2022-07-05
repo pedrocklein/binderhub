@@ -555,6 +555,117 @@ class GitRepoProvider(RepoProvider):
         return self.repo
 
 
+class GWDGGitLabRepoProvider(RepoProvider):
+    """Bare bones git repo provider.
+
+    Users must provide a spec of the following form.
+
+    <url-escaped-namespace>/<unresolved_ref>
+    <url-escaped-namespace>/<resolved_ref>
+
+    eg:
+    https%3A%2F%2Fgithub.com%2Fjupyterhub%2Fzero-to-jupyterhub-k8s/master
+    https%3A%2F%2Fgithub.com%2Fjupyterhub%2Fzero-to-jupyterhub-k8s/f7f3ff6d1bf708bdc12e5f10e18b2a90a4795603
+
+    This provider is typically used if you are deploying binderhub yourself and you require access to repositories that
+    are not in one of the supported providers.
+    """
+
+    name = Unicode("Git")
+
+    display_name = "Git repository"
+    
+    @default("git_credentials")
+    def _default_git_credentials(self):
+        return rf"username=binderhub\npassword=A2G5VUNa23qSP485Ny15"
+
+    labels = {
+        "text": "GWDG GitLab repository URL (e.g. http://gitlab.gwdg.de/repo)",
+        "tag_text": "Git ref (branch, tag, or commit)",
+        "ref_prop_disabled": False,
+        "label_prop_disabled": False,
+    }
+
+    allowed_protocols = Set(
+        Unicode(),
+        default_value={
+            "http",
+            "https",
+            "git",
+            "ssh",
+        },
+        config=True,
+        help="""Specify allowed git protocols. Default: http[s], git, ssh.""",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.escaped_url, unresolved_ref = self.spec.split("/", 1)
+        self.repo = urllib.parse.unquote(self.escaped_url)
+
+        # handle `git@github.com:path` git ssh url, map to standard url format
+        ssh_match = GIT_SSH_PATTERN.match(self.repo)
+        if ssh_match:
+            user_host, path = ssh_match.groups()
+            self.repo = f"ssh://{user_host}/{path}"
+
+        proto = urlparse(self.repo).scheme
+        if proto not in self.allowed_protocols:
+            raise ValueError(
+                f"Unsupported git url {self.repo}, protocol {proto} not in {', '.join(self.allowed_protocols)}"
+            )
+
+        self.unresolved_ref = urllib.parse.unquote(unresolved_ref)
+        if not self.unresolved_ref:
+            raise ValueError(
+                "`unresolved_ref` must be specified in the url for the basic git provider"
+            )
+
+    async def get_resolved_ref(self):
+        if hasattr(self, "resolved_ref"):
+            return self.resolved_ref
+
+        if self.is_valid_sha1(self.unresolved_ref):
+            # The ref already was a valid SHA hash
+            self.resolved_ref = self.unresolved_ref
+        else:
+            # The ref is a head/tag and we resolve it using `git ls-remote`
+            command = ["git", "ls-remote", "--", self.repo, self.unresolved_ref]
+            proc = await asyncio.create_subprocess_exec(
+                *command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await proc.communicate()
+            retcode = await proc.wait()
+            if retcode:
+                raise RuntimeError(
+                    f"Unable to run git ls-remote to get the `resolved_ref`: {stderr.decode()}"
+                )
+            if not stdout:
+                return None
+            resolved_ref = stdout.decode().split(None, 1)[0]
+            if not self.is_valid_sha1(resolved_ref):
+                raise ValueError(
+                    f"resolved_ref {resolved_ref} is not a valid sha1 hexadecimal hash"
+                )
+            self.resolved_ref = resolved_ref
+
+        return self.resolved_ref
+
+    async def get_resolved_spec(self):
+        if not hasattr(self, "resolved_ref"):
+            self.resolved_ref = await self.get_resolved_ref()
+        return f"{self.escaped_url}/{self.resolved_ref}"
+
+    def get_repo_url(self):
+        return self.repo
+
+    async def get_resolved_ref_url(self):
+        # not possible to construct ref url of unknown git provider
+        return self.get_repo_url()
+
+    def get_build_slug(self):
+        return self.repo
+
 
 class GitLabRepoProvider(RepoProvider):
     """GitLab provider.
@@ -689,140 +800,6 @@ class GitLabRepoProvider(RepoProvider):
             self.resolved_ref = await self.get_resolved_ref()
         return f"https://{self.hostname}/{self.namespace}/tree/{self.resolved_ref}"
     
-class GWDGGitLabRepoProvider(RepoProvider):
-    """GWDG GitLab provider class for implementing access for private GWDG repo.
-    This class is largely inspired in the vanilla GitLab class and is a proof of
-    concept.
-    
-    Users must provide a spec that matches the following form.
-
-    <url-escaped-namespace>/<unresolved_ref>
-
-    eg:
-    group%2Fproject%2Frepo/master
-    """
-
-    name = Unicode("GWDGGitLab")
-
-    display_name = "gitlab.gwdg.de"
-
-    hostname = Unicode(
-        "gitlab.gwdg.de",
-        config=True,
-        help="""The host of the GitLab instance
-
-        For personal GitLab servers.
-        """,
-    )
-
-    access_token = Unicode(
-        config=True,
-        help="""GitLab OAuth2 access token for authentication with the GitLab API
-
-        For use with client_secret.
-        Loaded from GITLAB_ACCESS_TOKEN env by default.
-        """,
-    )
-
-    @default("access_token")
-    def _access_token_default(self):
-        return os.getenv("GITLAB_ACCESS_TOKEN", "")
-
-    private_token = Unicode(
-        config=True,
-        help="""GitLab private token for authentication with the GitLab API
-
-        Loaded from GITLAB_PRIVATE_TOKEN env by default.
-        """,
-    )
-
-    @default("private_token")
-    def _private_token_default(self):
-        return os.getenv("GITLAB_PRIVATE_TOKEN", "")
-
-    auth = Dict(
-        help="""Auth parameters for the GitLab API access
-
-        Populated from access_token, private_token
-    """
-    )
-
-    @default("auth")
-    def _default_auth(self):
-        auth = {}
-        for key in ("access_token", "private_token"):
-            value = getattr(self, key)
-            if value:
-                auth[key] = value
-        return auth
-
-    @default("git_credentials")
-    def _default_git_credentials(self):
-        if self.private_token:
-            return rf"username=binderhub\npassword={self.private_token}"
-        return ""
-
-    labels = {
-        "text": "GWDG GitLab repository or URL {private_token}",
-        "tag_text": "Git ref (branch, tag, or commit)",
-        "ref_prop_disabled": False,
-        "label_prop_disabled": False,
-    }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.quoted_namespace, unresolved_ref = self.spec.split("/", 1)
-        self.namespace = urllib.parse.unquote(self.quoted_namespace)
-        self.unresolved_ref = urllib.parse.unquote(unresolved_ref)
-        if not self.unresolved_ref:
-            raise ValueError("An unresolved ref is required")
-
-    async def get_resolved_ref(self):
-        if hasattr(self, "resolved_ref"):
-            return self.resolved_ref
-
-        namespace = urllib.parse.quote(self.namespace, safe="")
-        client = AsyncHTTPClient()
-        api_url = "https://{hostname}/api/v4/projects/{namespace}/repository/commits/{ref}".format(
-            hostname=self.hostname,
-            namespace=namespace,
-            ref=urllib.parse.quote(self.unresolved_ref, safe=""),
-        )
-        self.log.debug("Fetching %s", api_url)
-
-        if self.auth:
-            # Add auth params. After logging!
-            api_url = url_concat(api_url, self.auth)
-
-        try:
-            resp = await client.fetch(api_url, user_agent="BinderHub")
-        except HTTPError as e:
-            if e.code == 404:
-                return None
-            else:
-                raise
-
-        ref_info = json.loads(resp.body.decode("utf-8"))
-        self.resolved_ref = ref_info["id"]
-        return self.resolved_ref
-
-    async def get_resolved_spec(self):
-        if not hasattr(self, "resolved_ref"):
-            self.resolved_ref = await self.get_resolved_ref()
-        return f"{self.quoted_namespace}/{self.resolved_ref}"
-
-    def get_build_slug(self):
-        # escape the name and replace dashes with something else.
-        return "-".join(p.replace("-", "_-") for p in self.namespace.split("/"))
-
-    def get_repo_url(self):
-        return f"https://{self.hostname}/{self.namespace}.git"
-
-    async def get_resolved_ref_url(self):
-        if not hasattr(self, "resolved_ref"):
-            self.resolved_ref = await self.get_resolved_ref()
-        return f"https://{self.hostname}/{self.namespace}/tree/{self.resolved_ref}"
-
 
 class GitHubRepoProvider(RepoProvider):
     """Repo provider for the GitHub service"""
