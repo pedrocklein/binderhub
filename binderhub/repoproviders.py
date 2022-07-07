@@ -759,7 +759,7 @@ class GWDGGitLabRepoProvider(RepoProvider):
     @default("git_credentials")
     def _default_git_credentials(self):
         if self.private_token:
-            return "username=binderhub\npassword={self.private_token}"
+            return rf"username=binderhoob\npassword={self.private_token}"
         return ""
 
     labels = {
@@ -865,7 +865,7 @@ class GitHubRepoProvider(RepoProvider):
 
     client_id = Unicode(
         config=True,
-        help="""GitHub client id for authentication with the GitHub API
+        help="""GitHub client id for authentication with the GitHub2 API
 
         For use with client_secret.
         Loaded from GITHUB_CLIENT_ID env by default.
