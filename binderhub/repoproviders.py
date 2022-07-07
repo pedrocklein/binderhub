@@ -759,7 +759,7 @@ class GWDGGitLabRepoProvider(RepoProvider):
     @default("git_credentials")
     def _default_git_credentials(self):
         if self.private_token:
-            return rf"username=binderhoob\npassword={self.private_token}"
+            return rf"username=binderhub\npassword={self.private_token}"
         return ""
 
     labels = {
