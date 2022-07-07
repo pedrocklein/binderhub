@@ -108,7 +108,7 @@ function getBuildFormValues() {
   repo = repo.replace(/(^\/)|(\/?$)/g, '');
   // git providers encode the URL of the git repository as the repo
   // argument.
-  if (repo.includes("://") || providerPrefix === 'gl') {
+  if (repo.includes("://") || providerPrefix === 'gl' || providerPrefix === 'gwdg') {
     repo = encodeURIComponent(repo);
   }
 
