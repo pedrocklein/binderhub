@@ -42,7 +42,9 @@
               </button>
               <ul class="dropdown-menu" id="provider_prefix_sel">
                 {% for provider_prefix, provider in repo_providers.items() %}
-                  <li class="dropdown-item" value={{provider_prefix}}><a href="#">{{provider.display_name}}</a></li>
+                  {% if provider_prefix == 'gwdg' %}
+                    <li class="dropdown-item" value={{provider_prefix}}><a href="#">{{provider.display_name}}</a></li>
+                  {% endif}
                 {% endfor %}
               </ul>
             </div>
