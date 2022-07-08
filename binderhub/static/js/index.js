@@ -103,7 +103,7 @@ function getBuildFormValues() {
     repo = repo.replace(/^(https?:\/\/)?gist.github.com\//, '');
     repo = repo.replace(/^(https?:\/\/)?github.com\//, '');
     repo = repo.replace(/^(https?:\/\/)?gitlab.com\//, '');
-    repo = repo.replace(/^(https?:\/\/)?gitlab.gwdg.de\//, '');
+    repo = repo.replace(/^(https?:\/\/)?gitlab.gwdg.de\//, '');    
   }
   // trim trailing or leading '/' on repo
   repo = repo.replace(/(^\/)|(\/?$)/g, '');
