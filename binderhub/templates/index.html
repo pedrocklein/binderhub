@@ -44,7 +44,7 @@
                 {% for provider_prefix, provider in repo_providers.items() %}
                   {% if provider_prefix == 'gwdg' %}
                     <li class="dropdown-item" value={{provider_prefix}}><a href="#">{{provider.display_name}}</a></li>
-                  {% endif}
+                  {% endif %}
                 {% endfor %}
               </ul>
             </div>
