@@ -115,3 +115,5 @@ helm.txt
 # Federation data page
 doc/federation/data-federation.txt
 .vscode/
+
+*.tar

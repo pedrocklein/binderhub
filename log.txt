@@ -1,0 +1,20 @@
+Hang tight while we grab the latest from your chart repositories...
+...Successfully got an update from the "openebs" chart repository
+...Successfully got an update from the "jupyterhub" chart repository
+Update Complete. ⎈Happy Helming!⎈
+Saving 1 charts
+Downloading jupyterhub from repo https://jupyterhub.github.io/helm-chart
+Deleting outdated charts
+Release "binderhub-test" does not exist. Installing it now.
+NAME: binderhub-test
+LAST DEPLOYED: Tue Jun  6 15:49:30 2023
+NAMESPACE: default
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+NOTES:
+1. Get the application URL by running these commands:
+     NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+           You can watch the status of by running 'kubectl get svc -w binderhub-test-binderhub'
+  export SERVICE_IP=$(kubectl get svc --namespace default binderhub-test-binderhub -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+  echo http://$SERVICE_IP:
