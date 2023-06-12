@@ -1,7 +1,7 @@
 #!/bin/sh
 
 helm delete binderhub-test
-#eval $(minikube docker-env)
+# eval $(minikube docker-env)
 #(cd helm-chart && python3 -m chartpress --force-build) #Uncomment to rebuild from binderhub folder
 (cd helm-chart && python3 -m chartpress) # uncomment for a quickier rebuild
 (cd helm-chart/binderhub && helm dependency update)

@@ -5,7 +5,7 @@
 # before updating, and then deleted in a subsequent PR.
 
 service:
-  type: NodePort
+  type: LoadBalancer
   nodePort: 30901
 
 config:
@@ -13,10 +13,16 @@ config:
     # Use the internal host name for Pod to Pod communication
     # We can't use `hub_url` here because that is set to localhost which
     # works on the host but not from within a Pod
-    hub_url_local: http://proxy-public
-    use_registry: false
-    log_level: 10
-    cors_allow_origin: "*"
+    use_registry: true
+    image_prefix: localhost:443/binderhub-test-
+    hub_url: http://c109-005.cloud.gwdg.de:30901
+    #hub_url_local: http://proxy-public
+    #log_level: 10
+    #cors_allow_origin: "*"
+    auth_enabled: false
+    appendix: "RUN pip install voila"
+    build_max_age: 3600
+    build_token_expires_seconds: 3300
 
 extraFiles:
   page.html:
@@ -45,6 +51,12 @@ dind:
 #       jupyterhub-chart-config.yaml in testing/local-binder-k8s-hub, keep these
 #       two files synced please.
 jupyterhub:
+  cull:
+    users: false
+    every: 33
+    timeout: 300
+    maxAge: 7200
+
   debug:
     enabled: true
 
@@ -52,16 +64,83 @@ jupyterhub:
     config:
       BinderSpawner:
         cors_allow_origin: "*"
+        auth_enabled: false
+
+      GenericOAuthenticator:
+        client_id: "17f181e0709a3f04a3c14bb76738edd11e07a226b4cebea27a48d910040b4618"
+        client_secret: "653d7ad9be36288862d0ac380007b1cf55ca3837e0690c572b5fa5f214e2e729"
+        oauth_callback_url: http://c109-005.cloud.gwdg.de:30902/hub/oauth_callback #31836/oauth_callback
+        authorize_url: https://gitlab.gwdg.de/oauth/authorize
+        token_url: https://gitlab.gwdg.de/oauth/token
+        userdata_url: https://gitlab.gwdg.de/oauth/userinfo
+        enable_auth_state: true
+        scope:
+          - openid
+          - read_user
+          - profile
+          - email
+        username_key: name
+        allowed_groups:
+          - crc1456
+#        allowed_users:
+#          - costaklein
+#          - lehrenfeld
+
+      JupyterHub:
+        authenticator_class: generic-oauth
+
+    redirectToServer: false
+
+    allowNamedServers: true
+    # change this value as you wish,
+    # or remove this line if you don't want to have any limit
+    namedServerLimitPerUser: 15
+
+    services:
+      binder:
+        oauth_no_confirm: true
+        oauth_redirect_uri: "http://c109-005.cloud.gwdg.de:30901/oauth_callback"
+        oauth_client_id: "binder-oauth-client-test"
+
     db:
       type: "sqlite-memory"
 
   proxy:
     service:
-      type: NodePort
+      type: LoadBalancer
       nodePorts:
         http: 30902
 
   singleuser:
+    extraFiles:
+    # jupyter_notebook_config reference: https://jupyter-notebook.readthedocs.io/en/stable/config.html
+      jupyter_notebook_config.json:
+        mountPath: /etc/jupyter/jupyter_notebook_config.json
+        # data is a YAML structure here but will be rendered to JSON file as our
+        # file extension is ".json".
+        data:
+          VoilaConfiguration:
+            # theme: "dark"
+            # template: "gridstack"
+            show_tracebacks: true
+
+          MappingKernelManager:
+            # cull_idle_timeout: timeout (in seconds) after which an idle kernel is
+            # considered ready to be culled
+            cull_idle_timeout: 300 # default: 0
+
+            # cull_interval: the interval (in seconds) on which to check for idle
+            # kernels exceeding the cull timeout value
+            cull_interval: 33 # default: 300
+
+            # cull_connected: whether to consider culling kernels which have one
+            # or more connections
+            cull_connected: true # default: false
+
+            # cull_busy: whether to consider culling kernels which are currently
+            # busy running some code
+            cull_busy: false # default: false
+
     storage:
       type: none
     memory:
